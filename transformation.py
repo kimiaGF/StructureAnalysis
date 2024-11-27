@@ -10,6 +10,9 @@ import logging
 from vector import unit,rotate_vectors,get_angle
 from plotting import plot_coords,plot_structure,plot_shapes,plot_vectors_3d,plot_points,plot_lattice,plot_planes,plot_supercell_boundaries
 import pandas as pd
+import multiprocessing
+import os
+import math
 
 # Define logging configurations
 logger = logging.getLogger(__name__)
@@ -17,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(lineno)s:%(message)s')
 
-file_handler = logging.FileHandler('transformation.log')
+file_handler = logging.FileHandler('logs/transformation.log')
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
@@ -179,7 +182,7 @@ def FindUnitCell(struct_rot,tol,n):
 
     return BestLatDim,BestLatVect,(alfa,beta,gama)
 
-def find_n(struct,angle,max_n=205,tol=0.001):
+def find_n(struct,angle,max_n=205,tol=0.09):
     struct_rot,new_axes = rotate_lattice(struct,angle)
     
     logger.info(f'Angle of chain with respect to z-axis: {angle}º')
@@ -382,7 +385,7 @@ def move_origin(supercell_rhom,rect_domain):
 
 
 
-def generate_cuboidal_unit_cell(path_to_data,angle,tol=0.0001,n=None,plot_final=False):
+def generate_cuboidal_unit_cell(path_to_data,angle,tol=0.09,n=None,plot_final=False):
     # 1. Read in unit cell structure from data file
     
     struct = LammpsData.from_file(path_to_data,atom_style='atomic').structure
@@ -456,10 +459,10 @@ def replicate_coords(coords, axis_x, axis_y, axis_z, n):
 
 # %%
 if __name__ == '__main__':
-    fs = glob('/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/atom_labels/data.*')
+    fs = glob('/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/all_atoms/data.B*')
     df = {}
-    thetas = [0]
-    dim = [50,50,150]
+    thetas = [0,30,45,60,90]
+    dim = [50,50,1000]
 
     for theta in thetas:
         max_x,max_y,max_z = [0,0,0]
@@ -474,7 +477,7 @@ if __name__ == '__main__':
             if df[polytype].lattice.lengths[2] > max_z:
                 max_z = df[polytype].lattice.lengths[2]
 
-        #get scaling for each direction based on largest side length 
+        # get scaling for each direction based on largest side length
         if dim[0] > max_x:
             max_x = dim[0]
         if dim[1] > max_y:
@@ -484,25 +487,37 @@ if __name__ == '__main__':
 
         scale = {}
         for polytype in df:
-            lx,ly,lz = df[polytype].lattice.lengths
-            nx = np.ceil(max_x/lx)
-            ny = np.ceil(max_y/ly)
-            nz = np.ceil(max_z/lz)
+            lx, ly, lz = df[polytype].lattice.lengths
+            nx = np.ceil(max_x / lx)
+            ny = np.ceil(max_y / ly)
+            nz = np.ceil(max_z / lz)
 
-            scale[polytype] = [nx,ny,nz]
+            scale[polytype] = [nx, ny, nz]
 
-                
         super_cells = {}
         for polytype in df:
-            super_cells[polytype] = df[polytype].make_supercell(scale[polytype],in_place=False)
+            super_cells[polytype] = df[polytype].make_supercell(scale[polytype], in_place=False)
 
-            lammps_data = LammpsData.from_structure(super_cells[polytype],atom_style='charge')
-            filename = f'/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/rect_supercells/orientation/50-50-150/data.{polytype}_{theta}_charge'
-            lammps_data.write_file(filename)
-#%%
-            
-
-
-
-
-# %%
+            alpha,beta,gamma = super_cells[polytype].lattice.angles
+            if alpha <= 88 and beta <= 88 and gamma <= 60:
+                print('Skew too large, choose a better tolerance.')
+                print('--------------------------------------------------')
+                print(f'Polytype: {polytype}')
+                print(f'Angle: {theta}')
+                print(f'Lattice dimensions: {super_cells[polytype].lattice.lengths}')
+                print(f'Lattice angles: {super_cells[polytype].lattice.angles}')
+            else:
+                print('--------------------------------------------------')
+                print(f'Polytype: {polytype}')
+                print(f'Lattice dimensions: {super_cells[polytype].lattice.lengths}')
+                print(f'Lattice angles: {super_cells[polytype].lattice.angles}')
+                print(f'Number of atoms: {len(super_cells[polytype])}')
+                print('--------------------------------------------------')
+                
+                lammps_data = LammpsData.from_structure(super_cells[polytype], atom_style='atomic')
+                filename = f'/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/rect_supercells/orientation_all_labeled/{dim[0]}-{dim[1]}-{dim[2]}/data.{polytype}_{theta}'
+                if not os.path.isdir(
+                        f'/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/rect_supercells/orientation_all_labeled/{dim[0]}-{dim[1]}-{dim[2]}'):
+                    os.mkdir(
+                        f'/home/kimia.gh/blue2/B4C_ML_Potential/analysis_scripts/data_files/rect_supercells/orientation_all_labeled/{dim[0]}-{dim[1]}-{dim[2]}')
+                lammps_data.write_file(filename)
