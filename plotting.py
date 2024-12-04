@@ -4,13 +4,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import logging
 import numpy as np
-
+import os
 # %% Define logging configurations
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(lineno)s:%(message)s')
 
+if not os.path.isdir('logs'):
+    os.makedirs('logs')
 file_handler = logging.FileHandler('logs/plotting.log')
 file_handler.setFormatter(formatter)
 
