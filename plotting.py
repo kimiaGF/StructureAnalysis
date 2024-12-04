@@ -93,7 +93,7 @@ def plot_planes(normals, points, plane_size=10,fig=None):
 
     return fig
 
-def plot_points(points,fig=None):
+def plot_points(points,size=5,fig=None):
     if fig is None:
         fig = go.Figure()
 
@@ -103,7 +103,7 @@ def plot_points(points,fig=None):
             y=[point[1]],
             z=[point[2]],
             mode='markers',
-            marker=dict(size=5, color='black'),
+            marker=dict(size=s, color='black'),
             name='Point'
             ))
             
