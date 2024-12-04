@@ -269,7 +269,7 @@ def plot_vectors_3d(vectors, colors=None, labels=None, title=None,fig=None):
                                    showlegend=False))
 
     # Show plot
-    fig.show()
+
     return fig
     
 
